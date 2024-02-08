@@ -1,0 +1,51 @@
+# Node.js
+/node_modules/
+
+# Environment
+/.env
+
+# Logs and temporary files
+/logs/
+*.log
+*.tmp
+
+# Build and compiled files
+/build/
+/dist/
+/out/
+*.min.js
+*.min.css
+
+# User-specific files
+/.idea/
+/.vscode/
+*.sublime-project
+*.suo
+*.ntvs*
+
+# Operating system files
+Thumbs.db
+.DS_Store
+
+# Dependency management
+/yarn.lock
+/package-lock.json
+
+# Automatically generated files
+/coverage/
+/dist/
+/tmp/
+/out/
+
+# Configuration files
+.editorconfig
+.eslintrc
+.prettierrc
+
+# IDE-specific files
+.project
+.classpath
+
+# Miscellaneous
+*.swp
+*.swo
