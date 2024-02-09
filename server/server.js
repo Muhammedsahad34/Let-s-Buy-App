@@ -10,6 +10,7 @@ const cookieParser = require('cookie-parser');
 const multer = require('multer');
 const UserModel = require('./models/UserSchema');
 const ProductModel = require('./models/ProductSchema');
+const CartModel = require('./models/CartSchema');
 
 //setuping middleware
 const app = express();
@@ -31,6 +32,7 @@ app.use(session({
 
 //database connection
 mongoose.connect(process.env.MONGODB_URI);
+app.use(express.static('public'));
 //Storage for product imges
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -45,16 +47,16 @@ const upload = multer({ storage });
 //api routes
 //Route for Add product
 app.post('/addProduct', upload.single('image'), (req, res) => {
-    const { name, category, price,quantity, description } = req.body;
+    const { name, category, price, quantity, description } = req.body;
     const image = req.file ? `${req.file.originalname}` : '';
-    const product = { name, category, price, quantity,description, image }
+    const product = { name, category, price, quantity, description, image }
     const newProduct = new ProductModel(product);
     newProduct.save().then((savedproduct) => {
         res.json(true);
-      }).catch((error) => {
+    }).catch((error) => {
         console.log(error);
         res.json(error);
-      })
+    })
 })
 //Route for Signup
 app.post('/signup', async (req, res) => {
@@ -100,9 +102,44 @@ app.get('/profile', (req, res) => {
     } else {
         res.json(null)
     }
-    // console.log(req.session.user);
-})
 
+})
+//Fetch All Product
+app.get('/All-products', async (req, res) => {
+    const allProducts = await ProductModel.find({});
+    res.json(allProducts);
+});
+//Add to Cart Route
+app.get('/addToCart/:id', async (req, res) => {
+    const { id } = req.params;
+    let userId = req.session.user._id;
+    try {
+        let userCart = await CartModel.findOne({ user: userId });
+        if (userCart) {
+            const existingProduct = userCart.products.findIndex(product => product.item.toString() == id);
+            if (existingProduct !== -1) {
+                userCart.products[existingProduct].count += 1;
+            } else {
+                userCart.products.push({ item: id, count: 1 })
+            }
+            await userCart.save().then((response) => {
+                res.json(response)
+            }).catch(err => res.json(err));
+        } else {
+            console.log('worked')
+            userCart = new CartModel({ user: userId, products: [{ item: id, count: 1 }] });
+            await userCart.save().then((response) => {
+                res.json(response);
+            }).catch((err) => {
+                res.json(err);
+            })
+
+        }
+
+    } catch (err) {
+        res.json(err)
+    }
+})
 //port running
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
