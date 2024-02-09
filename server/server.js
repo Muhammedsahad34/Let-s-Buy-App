@@ -139,6 +139,121 @@ app.get('/addToCart/:id', async (req, res) => {
     } catch (err) {
         res.json(err)
     }
+});
+
+//Fetch Cart
+app.get('/fetchCart', async (req, res) => {
+    let userId = req.session.user._id;
+    userId = new mongoose.Types.ObjectId(userId);
+    const productsInCart = await CartModel.aggregate([
+        {
+            $match: { user: userId }
+        },
+        {
+            $unwind: '$products'
+        },
+        {
+            $lookup: {
+                from: 'products',
+                localField: 'products.item',
+                foreignField: '_id',
+                as: 'productDetails'
+            }
+        },
+        {
+            $unwind: '$productDetails'
+        },
+        {
+            $project: {
+                _id: '$productDetails._id',
+                name: '$productDetails.name',
+                category: '$productDetails.category',
+                price: '$productDetails.price',
+                image: '$productDetails.image',
+                count: '$products.count'
+
+            }
+        }
+    ]);
+
+    let totalPrice = 0;
+    productsInCart.forEach(element => {
+        totalPrice = totalPrice + element.count * element.price
+    });
+    if (productsInCart.length === 0) {
+        res.json({ data: false, total: 0 });
+    } else {
+        res.json({ data: productsInCart, total: totalPrice });
+
+    }
+});
+//increment or decrement the count in the cart
+app.get('/incdecCount/:id/:count', async (req, res) => {
+    const proId = req.params.id;
+    const userId = req.session.user._id;
+    let incDec = parseInt(req.params.count);
+    const userCart = await CartModel.findOne({ user: userId });
+    if (userCart) {
+        const productIndex = userCart.products.findIndex(product => product.item.toString() === proId);
+        if (productIndex !== -1) {
+            userCart.products[productIndex].count += incDec;
+            await userCart.save().then((response) => {
+                res.json(response.products[productIndex]);
+            })
+        }
+    }
+})
+//Remove item from cart
+app.get('/removeFromCart/:id', async (req, res) => {
+    const proId = req.params.id;
+    const userId = req.session.user._id;
+    cart = await CartModel.findOneAndUpdate({ user: userId, 'products.item': proId },
+        { $pull: { products: { item: proId } } },
+        { new: true }
+    ).then((response) => {
+
+        res.json(response);
+    })
+});
+//Delete the product
+app.get('/deleteProduct/:id', async (req, res) => {
+    const proId = req.params.id;
+    await ProductModel.findByIdAndDelete(proId).then((response) => {
+        res.json(true)
+    }).catch(err => {
+        res.json(err)
+    })
+})
+//Fetching detail of each Product
+app.get('/eachProduct/:id', async (req, res) => {
+    const proId = req.params.id;
+    await ProductModel.findById(proId).then((response) => {
+        res.json(response)
+    }).catch((err) => {
+        res.json(err)
+    });
+
+})
+//update the product Details
+app.post('/updateProduct/:id', upload.single('image'), async (req, res) => {
+    const proId = req.params.id;
+    const { name, category, price,quantity, description, oldimage } = req.body;
+    const image = req.file ? `${req.file.originalname}` : oldimage;
+    const product = { name, category, price,quantity, description, image };
+    await ProductModel.findByIdAndUpdate(proId, product, { new: true }).then((response) => {
+        res.json(response)
+    }).catch((err) => {
+        res.json(err)
+    })
+})
+//Logout 
+app.get('/logout',(req,res) => {
+    req.session.user = null;
+    if(req.session.user !== null){
+      res.json(false)
+    }else{
+      res.json(true)
+    }
 })
 //port running
 app.listen(PORT, () => {
